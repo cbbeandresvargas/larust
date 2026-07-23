@@ -1,0 +1,13 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}Error del servidor{% endblock %}
+
+{% block content %}
+<div class="max-w-lg mx-auto text-center space-y-4 py-24">
+    <h1 class="text-6xl font-black text-rose-500">500</h1>
+    <p class="text-xl text-slate-300">{{ message }}</p>
+    <a href="/" class="inline-block px-6 py-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-slate-300 transition">
+        Volver al inicio
+    </a>
+</div>
+{% endblock %}

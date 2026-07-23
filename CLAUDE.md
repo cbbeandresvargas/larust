@@ -4,9 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-Larust is an MVC starter-kit template combining Rust (Axum + Tokio) with a Laravel-inspired directory structure. It's a GitHub template repo, not an application with existing business logic — most of the repo is scaffolding plus `docs/` walkthroughs showing the intended conventions for extending it (adding controllers, models, migrations, views).
+Larust is an MVC starter-kit template combining Rust (Axum + Tokio) with a Laravel-inspired directory structure. It's a GitHub template repo, not a blank scaffold — it ships a working demo (cookie-session auth, user CRUD, file uploads) plus `docs/` walkthroughs showing the intended conventions for extending it (adding controllers, models, migrations, views).
 
-Stack: Axum (web framework) + Tokio (async runtime) + Askama (compile-time type-checked HTML templates) + SQLx `AnyPool` (DB-agnostic SQLite/Postgres) + HTMX + Tailwind CSS v4.
+Stack: Axum (web framework) + Tokio (async runtime) + Askama (compile-time type-checked HTML templates) + SQLx `AnyPool` (DB-agnostic SQLite/Postgres) + HTMX + Tailwind CSS v4 + bcrypt (password hashing) + axum-extra cookie jar (sessions).
 
 ## Commands
 
@@ -32,32 +32,39 @@ npm run build:css     # minified Tailwind output
 # Checks
 cargo check
 cargo build
-```
 
-There is no test suite in this repo (no `#[test]` anywhere). If you add tests, standard `cargo test` applies.
+# Tests (integration tests spin up the real router against an in-memory SQLite DB)
+cargo test
+cargo test some_test_name    # run a single test by name substring
+```
 
 ### Database / migrations
 
-- Connection string lives in `.env` (`DATABASE_URL`), copy from `.env.example`. Default is `sqlite://database.sqlite`.
+- Connection string lives in `.env` (`DATABASE_URL`), copy from `.env.example`. Default is `sqlite://database.sqlite` (the file is gitignored — it's created and migrated automatically on first run).
 - Migrations run **automatically on server start** via `sqlx::migrate!("./migrations").run(&pool)` in `src/main.rs` — no manual step needed in dev.
 - SQL files live in `migrations/`, named `<timestamp>_description.sql`. Manual control (optional): `cargo install sqlx-cli --no-default-features --features native-tls,sqlite,postgres`, then `sqlx migrate add <name>` / `sqlx migrate run`.
 - Because the pool uses `sqlx::Any`, bind placeholders are always `?` regardless of backend (SQLite or Postgres). Postgres migrations need `SERIAL`/`GENERATED ALWAYS AS IDENTITY` instead of SQLite's `INTEGER PRIMARY KEY AUTOINCREMENT`.
-- `main.rs` also auto-creates the SQLite file if missing and seeds one `users` row if the table is empty — relevant if you're debugging "why does this data exist" on a fresh clone.
+- **Any-driver decoding gotcha**: don't declare a `TIMESTAMP`/`DATETIME` column type in a migration if you plan to `query_as` it into a `String` — `sqlx::Any` can't map SQLite's `Datetime` type affinity and the query fails at runtime (not compile time). Use `VARCHAR`/`TEXT` instead (see `uploads.created_at`); `CURRENT_TIMESTAMP` still produces the same text value.
+- `main.rs` auto-creates the SQLite file if missing and seeds one `users` row (`info@larust.dev` / `password`) if the table is empty.
 
 ## Architecture
 
-Request flow: `src/main.rs` (Axum server + `AnyPool` setup) → `src/routes.rs` (route table) → `src/controllers/*` (handlers, extract `State<AnyPool>`/`Path`/`Form`/etc., query via SQLx, return an Askama template struct) → `templates/*.html` (Askama, compiled into the binary) → response. If the request came from HTMX, the handler returns a plain fragment/string instead of a full page.
+Request flow: `src/main.rs` (loads env, connects `AnyPool`, runs migrations/seed) → `larust::build_app` in `src/lib.rs` (assembles the full router) → `src/routes.rs` (route table, mounts the auth middleware on protected routes) → `src/controllers/*` (handlers, extract `State<AnyPool>`/`Path`/`Form`/`Extension<User>`, query via SQLx, return an Askama template struct or a `Result<_, AppError>`) → `templates/*.html` (Askama, compiled into the binary) → response. If the request came from HTMX (e.g. the delete-user button), the handler returns a plain empty/fragment response instead of a full page.
 
-Conventions to follow when extending (mirrored in `docs/`):
-- **Routes** (`src/routes.rs`): two router builders — `web_routes()` for HTML views, `api_routes()` (mounted at `/api`) for HTMX/JSON endpoints. Both are `Router<AnyPool>`; the pool is attached once via `.with_state(pool)` in `main.rs`.
-- **Controllers** (`src/controllers/`): one file per resource, declared in `controllers/mod.rs`. A handler returning HTML defines an `#[derive(Template)] #[template(path = "...")]` struct matching a file under `templates/`, and returns that struct (via `askama_axum::IntoResponse`). A handler for HTMX/API calls can just return `&'static str`/`String`/`Json<T>`.
-- **Models** (`src/models/`): plain structs deriving `FromRow` (+ `Serialize`/`Deserialize` as needed) that mirror a table's columns exactly, since `query_as::<_, T>` maps positionally/by-name from the SELECT. Re-exported through `models/mod.rs` (`pub use x::X`).
-- **Views** (`templates/`): Askama templates. `templates/layouts/base.html` defines `{% block %}` regions; feature templates `{% extends %}` it. Whitespace is minimized at compile time (`askama.toml`). Static assets (compiled CSS, htmx.min.js) are served from `static/` via `tower-http::ServeDir` at `/static`.
-- **Middleware**: none is wired up yet; the pattern (per `docs/middleware.md`) is an `axum::middleware::from_fn` function applied to a route subset with `.route_layer(...)` — note layers apply bottom-up relative to where they're attached.
+**Binary + library split**: application code lives in `src/lib.rs` (`pub mod controllers/error/middleware/models/routes` plus `build_app(pool) -> Router`); `src/main.rs` only does process bootstrap (env, DB connect, migrations, seed) and calls `larust::build_app`. This exists so `tests/integration_test.rs` can build the *exact* router the server runs, via `tower::ServiceExt::oneshot`, without duplicating router-assembly logic.
 
-`docs/` has a per-concern deep-dive (`architecture.md`, `controllers.md`, `models.md`, `database.md`, `views.md`, `middleware.md`) — check the relevant one before adding a new controller/model/migration, since it documents the exact scaffolding pattern this template expects.
+Conventions to follow when extending (mirrored in `docs/`, though the docs predate auth/uploads/error-handling and describe the simpler original shape):
+- **Routes** (`src/routes.rs`): `web_routes(pool)` returns public routes (`/`, `/login`, `/register`) merged with a `protected` sub-router (`/users*`, `/uploads`, `/logout`) that has `middleware::from_fn_with_state(pool, require_auth)` applied via `.route_layer(...)`. `api_routes()` is mounted at `/api` for HTMX/JSON endpoints. Axum panics on two separate `.route()` calls for the same path — combine methods on one call (`get(x).post(y)`) instead of registering the path twice.
+- **Controllers** (`src/controllers/`): one file per resource, declared in `controllers/mod.rs`. A handler returning HTML defines a `#[derive(Template)] #[template(path = "...")]` struct matching a file under `templates/` and returns it directly (askama_axum's blanket `IntoResponse` impl covers it — no explicit import needed at the call site). Handlers needing the logged-in user take `Extension<User>` (populated by the auth middleware, not re-queried). Fallible handlers return `Result<T, AppError>` and use `?` on `sqlx`/`io` calls rather than `unwrap_or_default()`.
+- **Models** (`src/models/`): plain structs deriving `FromRow` (+ `Serialize`/`Deserialize` as needed) that mirror a table's columns exactly, since `query_as::<_, T>` maps positionally/by-name from the SELECT. Re-exported through `models/mod.rs`. `User::password_hash` is `#[serde(skip_serializing)]` — never let it leak into a JSON response.
+- **Views** (`templates/`): Askama templates. `templates/layouts/base.html` defines `{% block %}` regions plus the top nav; feature templates `{% extends %}` it. Whitespace is minimized at compile time (`askama.toml`).
+- **Errors** (`src/error.rs`): `AppError` (`NotFound` / `BadRequest` / `Internal`) implements `IntoResponse`, rendering `templates/errors/404.html` or `500.html`; `From<sqlx::Error>` and `From<std::io::Error>` log and convert to `Internal` so handlers can just use `?`. `error::not_found` is wired as the router's `.fallback(...)` for unmatched routes.
+- **Auth** (`src/middleware/auth.rs`, `src/controllers/auth_controller.rs`): session token in an `HttpOnly` cookie (`session_id`, set via `axum-extra`'s `CookieJar`), backed by a `sessions` table (opaque UUID id → `user_id`, `expires_at` as a unix timestamp — 7-day expiry). `require_auth` looks up the cookie, validates the session and user, and inserts `User` into request extensions on success; otherwise it redirects (303) to `/login`. Passwords are hashed with `bcrypt` (`User::hash_password` / `User::verify_password`); there's no password-reset flow.
+- **File uploads** (`src/controllers/upload_controller.rs`): `axum::extract::Multipart` (needs the `multipart` feature on the `axum` dependency), saved to `static/uploads/<uuid>-<original-name>` and recorded in the `uploads` table. The original filename is reduced to `Path::file_name()` before being used in the stored path — don't remove that, it's what prevents a crafted filename (e.g. `../../etc/passwd`) from writing outside the uploads directory.
+
+`docs/` still has a per-concern deep-dive (`architecture.md`, `controllers.md`, `models.md`, `database.md`, `views.md`, `middleware.md`) for the original scaffolding patterns (routing, Askama, HTMX basics) — accurate for the mechanics, just not updated for the auth/upload/error-handling layer added on top.
 
 ## Notes
 
-- `database.sqlite` is committed in this repo (unusual — normally gitignored); `.gitignore` excludes `.env`, `/target`, `/Cargo.lock`, and `static/css/output.css` (the compiled Tailwind CSS, regenerated by `npm run dev:css`/`build:css`).
-- README and all `docs/` content are written in Spanish.
+- `.gitignore` excludes `.env`, `/target`, `/Cargo.lock`, `database.sqlite`, `static/css/output.css` (compiled Tailwind, regenerated by `npm run dev:css`/`build:css`), and everything under `static/uploads/` except `.gitkeep`.
+- README and all `docs/` content are written in Spanish; code comments and commit messages in this repo follow that convention too.

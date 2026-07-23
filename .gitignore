@@ -3,3 +3,6 @@
 .env
 static/css/output.css
 /node_modules
+/database.sqlite
+/static/uploads/*
+!/static/uploads/.gitkeep

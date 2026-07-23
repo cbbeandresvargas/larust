@@ -9,7 +9,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-axum = "0.7"
+axum = { version = "0.7", features = ["multipart"] }
+axum-extra = { version = "0.9", features = ["cookie"] }
 tokio = { version = "1.0", features = ["full"] }
 askama = "0.12"
 askama_axum = "0.4"
@@ -17,3 +18,8 @@ tower-http = { version = "0.5", features = ["fs", "trace"] }
 dotenvy = "0.15"
 sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "sqlite", "postgres", "any", "macros"] }
 serde = { version = "1.0", features = ["derive"] }
+bcrypt = "0.15"
+uuid = { version = "1", features = ["v4"] }
+
+[dev-dependencies]
+tower = { version = "0.4", features = ["util"] }

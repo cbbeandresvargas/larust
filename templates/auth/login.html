@@ -1,0 +1,36 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}Iniciar sesión - Larust{% endblock %}
+
+{% block content %}
+<div class="max-w-md mx-auto space-y-6 py-6">
+    <h2 class="text-3xl font-extrabold text-white">Iniciar sesión</h2>
+
+    {% if let Some(msg) = error %}
+    <div class="p-4 bg-rose-950/60 border border-rose-800 text-rose-300 rounded-xl text-sm">
+        {{ msg }}
+    </div>
+    {% endif %}
+
+    <form method="post" action="/login" class="bg-slate-800 border border-slate-700 rounded-xl p-6 space-y-4 shadow-xl">
+        <div>
+            <label class="block text-sm text-slate-400 mb-1">Correo</label>
+            <input type="email" name="email" required
+                   class="w-full p-2 rounded-lg bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-orange-500">
+        </div>
+        <div>
+            <label class="block text-sm text-slate-400 mb-1">Contraseña</label>
+            <input type="password" name="password" required
+                   class="w-full p-2 rounded-lg bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-orange-500">
+        </div>
+        <button type="submit"
+                class="w-full px-4 py-2 bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-white font-semibold rounded-lg transition">
+            Entrar
+        </button>
+    </form>
+
+    <p class="text-sm text-slate-400">
+        ¿No tienes cuenta? <a href="/register" class="text-orange-400 hover:underline">Regístrate</a>
+    </p>
+</div>
+{% endblock %}

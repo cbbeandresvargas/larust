@@ -1,11 +1,7 @@
-use axum::Router;
-use tower_http::services::ServeDir;
 use std::net::SocketAddr;
-use sqlx::AnyPool;
 
-mod controllers;
-mod models;
-mod routes;
+use larust::{build_app, models::User};
+use sqlx::AnyPool;
 
 #[tokio::main]
 async fn main() {
@@ -36,6 +32,9 @@ async fn main() {
         }
     }
 
+    // Directorio donde se guardan los archivos subidos por los usuarios
+    std::fs::create_dir_all("static/uploads").ok();
+
     // Inicializar pool de conexiones agnóstico
     let pool = AnyPool::connect(&database_url)
         .await
@@ -55,23 +54,22 @@ async fn main() {
         .unwrap_or((0,));
 
     if count.0 == 0 {
-        sqlx::query("INSERT INTO users (name, email) VALUES ('Usuario Larust', 'info@larust.dev')")
+        let password_hash = User::hash_password("password").expect("No se pudo generar el hash de la contraseña semilla");
+        sqlx::query("INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)")
+            .bind("Usuario Larust")
+            .bind("info@larust.dev")
+            .bind(password_hash)
             .execute(&pool)
             .await
             .ok();
-        println!("🦀 Semilla de usuario de prueba insertada con éxito.");
+        println!("🦀 Semilla de usuario de prueba insertada (info@larust.dev / password).");
     }
 
-    // Construir la aplicación con rutas web, API y archivos estáticos
-    let app = Router::new()
-        .merge(routes::web_routes())
-        .nest("/api", routes::api_routes())
-        .nest_service("/static", ServeDir::new("static"))
-        .with_state(pool);
+    let app = build_app(pool);
 
     let addr_str = format!("{}:{}", host, port);
     let addr: SocketAddr = addr_str.parse().expect("Dirección de red no válida");
-    
+
     println!("🦀 Larust corriendo en http://{}", addr);
 
     let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();

@@ -1,0 +1,43 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}{% if user.is_some() %}Editar Usuario{% else %}Nuevo Usuario{% endif %} - Larust{% endblock %}
+
+{% block content %}
+<div class="max-w-md mx-auto space-y-6 py-6">
+    <h2 class="text-3xl font-extrabold text-white">
+        {% if let Some(u) = user %}Editar Usuario{% else %}Nuevo Usuario{% endif %}
+    </h2>
+
+    {% if let Some(msg) = error %}
+    <div class="p-4 bg-rose-950/60 border border-rose-800 text-rose-300 rounded-xl text-sm">
+        {{ msg }}
+    </div>
+    {% endif %}
+
+    <form method="post"
+          action="{% if let Some(u) = user %}/users/{{ u.id }}{% else %}/users{% endif %}"
+          class="bg-slate-800 border border-slate-700 rounded-xl p-6 space-y-4 shadow-xl">
+        <div>
+            <label class="block text-sm text-slate-400 mb-1">Nombre</label>
+            <input type="text" name="name" required
+                   value="{% if let Some(u) = user %}{{ u.name }}{% endif %}"
+                   class="w-full p-2 rounded-lg bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-orange-500">
+        </div>
+        <div>
+            <label class="block text-sm text-slate-400 mb-1">Correo</label>
+            <input type="email" name="email" required
+                   value="{% if let Some(u) = user %}{{ u.email }}{% endif %}"
+                   class="w-full p-2 rounded-lg bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-orange-500">
+        </div>
+        {% if user.is_none() %}
+        <p class="text-xs text-slate-500">
+            Se asignará una contraseña temporal ("changeme123") que el usuario puede cambiar al iniciar sesión.
+        </p>
+        {% endif %}
+        <button type="submit"
+                class="w-full px-4 py-2 bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-white font-semibold rounded-lg transition">
+            Guardar
+        </button>
+    </form>
+</div>
+{% endblock %}
