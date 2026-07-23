@@ -1,0 +1,15 @@
+{
+  "name": "larust",
+  "version": "1.0.0",
+  "description": "Starter kit ergonómico con Rust, Axum, Askama, Tailwind CSS y HTMX",
+  "scripts": {
+    "dev:css": "tailwindcss -i ./static/css/input.css -o ./static/css/output.css --watch",
+    "dev:server": "cargo watch -i \"static/*\" -i \"target/*\" -x run",
+    "dev": "concurrently \"npm run dev:css\" \"npm run dev:server\"",
+    "build:css": "tailwindcss -i ./static/css/input.css -o ./static/css/output.css --minify"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "tailwindcss": "^4.0.0"
+  }
+}

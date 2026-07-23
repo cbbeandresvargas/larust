@@ -1,0 +1,19 @@
+# Comandos recomendados para Desarrollo con Hot Reload (recarga en caliente):
+# Básico: cargo watch -x run
+# Optimizado (evita bucles infinitos ignorando carpetas estáticas y target):
+# cargo watch -i "static/*" -i "target/*" -x run
+
+[package]
+name = "larust"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+axum = "0.7"
+tokio = { version = "1.0", features = ["full"] }
+askama = "0.12"
+askama_axum = "0.4"
+tower-http = { version = "0.5", features = ["fs", "trace"] }
+dotenvy = "0.15"
+sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "sqlite", "postgres", "any", "macros"] }
+serde = { version = "1.0", features = ["derive"] }

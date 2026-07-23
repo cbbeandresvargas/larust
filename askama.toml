@@ -1,0 +1,8 @@
+# Configuración de Askama (Motor de Vistas)
+# Documentación: https://djc.github.io/askama/configuration.html
+
+[templates]
+# Minifica todos los espacios en blanco, saltos de línea y tabulaciones innecesarios
+# en las vistas HTML durante el tiempo de compilación.
+# Esto reduce drásticamente el tamaño del HTML enviado al cliente sin impacto en el runtime.
+minimize = "whitespace"

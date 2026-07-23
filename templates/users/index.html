@@ -1,0 +1,43 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}Usuarios - Larust{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto space-y-6 py-6">
+    <div class="flex justify-between items-center">
+        <h2 class="text-3xl font-extrabold text-white">Listado de Usuarios</h2>
+        <a href="/" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-sm transition">
+            Volver
+        </a>
+    </div>
+
+    <div class="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden shadow-xl">
+        <table class="w-full text-left border-collapse">
+            <thead>
+                <tr class="border-b border-slate-700 bg-slate-900/50">
+                    <th class="p-4 font-semibold text-slate-300">ID</th>
+                    <th class="p-4 font-semibold text-slate-300">Nombre</th>
+                    <th class="p-4 font-semibold text-slate-300">Email</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-700/50 text-slate-300">
+                {% if users.is_empty() %}
+                <tr>
+                    <td colspan="3" class="p-8 text-center text-slate-500">
+                        No hay usuarios registrados en la base de datos.
+                    </td>
+                </tr>
+                {% else %}
+                    {% for user in users %}
+                    <tr class="hover:bg-slate-700/20 transition">
+                        <td class="p-4 font-mono text-sm">{{ user.id }}</td>
+                        <td class="p-4 font-medium">{{ user.name }}</td>
+                        <td class="p-4">{{ user.email }}</td>
+                    </tr>
+                    {% endfor %}
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

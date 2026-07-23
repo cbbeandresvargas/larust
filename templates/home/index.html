@@ -1,0 +1,95 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}Inicio - Larust{% endblock %}
+
+{% block content %}
+<div class="space-y-16 py-12">
+    <!-- Hero Section -->
+    <div class="max-w-3xl mx-auto text-center space-y-6">
+        <div class="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-orange-500/10 border border-orange-500/20 text-orange-400 text-xs font-semibold uppercase tracking-wider">
+            <span>🚀 Larust Starter Kit v0.1.0</span>
+        </div>
+        <h1 class="text-5xl md:text-6xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-orange-500 via-amber-400 to-rose-500">
+            La elegancia de Laravel.<br/>La velocidad de Rust.
+        </h1>
+        <p class="text-lg md:text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed">
+            Construye aplicaciones web monolíticas modernas y ultrarrápidas utilizando Axum, Askama, Tailwind CSS y HTMX con base de datos agnóstica.
+        </p>
+        <div class="flex flex-wrap justify-center gap-4 pt-4">
+            <a href="/users" class="px-6 py-3 bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-white font-semibold rounded-xl shadow-lg hover:shadow-orange-500/20 transition duration-200 ease-in-out transform hover:-translate-y-0.5">
+                Ver Base de Datos (Usuarios)
+            </a>
+            <a href="https://github.com" target="_blank" class="px-6 py-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 font-semibold rounded-xl transition duration-200 ease-in-out transform hover:-translate-y-0.5">
+                Documentación GitHub
+            </a>
+        </div>
+    </div>
+
+    <!-- Features Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+        <!-- Feature 1 -->
+        <div class="p-6 bg-slate-800/50 backdrop-blur border border-slate-700/60 rounded-2xl hover:border-orange-500/50 transition duration-300 space-y-3">
+            <div class="w-12 h-12 flex items-center justify-center rounded-xl bg-orange-500/10 text-orange-500 font-bold text-xl">
+                ⚡
+            </div>
+            <h3 class="text-lg font-bold text-white">Rendimiento Extremo</h3>
+            <p class="text-sm text-slate-400">
+                Construido sobre Axum y Tokio. Cero sobrecarga innecesaria para un tiempo de respuesta medido en microsegundos.
+            </p>
+        </div>
+
+        <!-- Feature 2 -->
+        <div class="p-6 bg-slate-800/50 backdrop-blur border border-slate-700/60 rounded-2xl hover:border-amber-500/50 transition duration-300 space-y-3">
+            <div class="w-12 h-12 flex items-center justify-center rounded-xl bg-amber-500/10 text-amber-500 font-bold text-xl">
+                🛡️
+            </div>
+            <h3 class="text-lg font-bold text-white">Blade con Tipos Seguros</h3>
+            <p class="text-sm text-slate-400">
+                Plantillas HTML compiladas con Askama. Si hay un error de sintaxis o tipo en tu vista, el compilador de Rust te lo dirá.
+            </p>
+        </div>
+
+        <!-- Feature 3 -->
+        <div class="p-6 bg-slate-800/50 backdrop-blur border border-slate-700/60 rounded-2xl hover:border-rose-500/50 transition duration-300 space-y-3">
+            <div class="w-12 h-12 flex items-center justify-center rounded-xl bg-rose-500/10 text-rose-500 font-bold text-xl">
+                🔌
+            </div>
+            <h3 class="text-lg font-bold text-white">HTMX Reactivo</h3>
+            <p class="text-sm text-slate-400">
+                Interactividad de aplicación SPA sin configurar bundlers de JavaScript. Actualizaciones HTML parciales de forma nativa.
+            </p>
+        </div>
+    </div>
+
+    <!-- Interactive HTMX Area (Terminal) -->
+    <div class="max-w-2xl mx-auto">
+        <div class="bg-slate-950 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl">
+            <!-- Header de la consola -->
+            <div class="flex items-center justify-between px-4 py-3 bg-slate-900 border-b border-slate-800">
+                <div class="flex items-center space-x-2">
+                    <span class="w-3 h-3 rounded-full bg-rose-500"></span>
+                    <span class="w-3 h-3 rounded-full bg-amber-500"></span>
+                    <span class="w-3 h-3 rounded-full bg-emerald-500"></span>
+                </div>
+                <span class="text-xs font-mono text-slate-500">htmx_terminal.sh</span>
+                <span class="w-10"></span>
+            </div>
+            <!-- Cuerpo de la consola -->
+            <div class="p-6 space-y-4 font-mono text-sm text-slate-300">
+                <div class="flex items-center space-x-2">
+                    <span class="text-orange-500">larust-app $</span>
+                    <span>curl -X GET http://localhost:3000/api/ping</span>
+                </div>
+                <div>
+                    <button hx-get="/api/ping" hx-target="#result" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 hover:text-white border border-slate-700 rounded-lg text-xs font-semibold cursor-pointer transition">
+                        Ejecutar Petición HTMX
+                    </button>
+                </div>
+                <div id="result" class="p-4 bg-slate-900/50 border border-slate-900 rounded-xl min-h-[50px] text-emerald-400 flex items-center justify-center">
+                    Esperando petición...
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

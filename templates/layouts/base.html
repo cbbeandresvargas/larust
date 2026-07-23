@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Larust App{% endblock %}</title>
+    
+    <!-- CSS de Tailwind -->
+    <link rel="stylesheet" href="/static/css/output.css">
+    <!-- HTMX Local -->
+    <script src="/static/js/htmx.min.js" defer></script>
+</head>
+<body class="bg-slate-900 text-white min-h-screen">
+    <header class="p-4 bg-slate-800 border-b border-slate-700">
+        <div class="container mx-auto flex justify-between items-center">
+            <h1 class="text-xl font-bold text-orange-500">Larust 🦀</h1>
+            <span class="text-xs text-slate-400">Laravel MVC vibes + Rust speed</span>
+        </div>
+    </header>
+
+    <main class="container mx-auto p-6">
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>
