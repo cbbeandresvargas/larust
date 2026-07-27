@@ -4,6 +4,11 @@ Los modelos representan la estructura de los datos de la aplicación y la lógic
 
 ---
 
+> [!TIP]
+> `cargo make:model Product` genera automáticamente el archivo del modelo y
+> lo registra en `mod.rs` — ver "CLI de scaffolding" en `CLAUDE.md`. Lo de
+> abajo explica el patrón que ese comando reproduce.
+
 ## 🛠️ Cómo crear un modelo paso a paso
 
 ### Paso 1: Crear la estructura del modelo
@@ -50,7 +55,7 @@ Para usar el modelo e interactuar con la base de datos desde tu controlador, pue
 
 ```rust
 use axum::extract::State;
-use larust::db::AppState;
+use crate::db::AppState;
 use crate::models::Product;
 
 pub async fn list_products(State(state): State<AppState>) -> Result<axum::Json<Vec<Product>>, String> {

@@ -1,0 +1,7 @@
+# Alias de scaffolding, estilo `php artisan make:...`. Ver la sección
+# "CLI de scaffolding" en CLAUDE.md. No requieren instalar nada: usan el
+# binario `larust-cli` (src/bin/larust-cli.rs), que compila junto al proyecto.
+[alias]
+"make:model" = "run --quiet --bin larust-cli -- make:model"
+"make:controller" = "run --quiet --bin larust-cli -- make:controller"
+"make:migration" = "run --quiet --bin larust-cli -- make:migration"

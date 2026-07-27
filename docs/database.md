@@ -22,6 +22,11 @@ DATABASE_URL=sqlite://database.sqlite
 
 Larust viene configurado con un sistema de **migraciones automáticas** que detecta y aplica cambios estructurales en tu base de datos cada vez que inicia la aplicación.
 
+> [!TIP]
+> `cargo make:migration create_products_table` genera el archivo con el
+> timestamp correcto y el esqueleto de abajo automáticamente — ver "CLI de
+> scaffolding" en `CLAUDE.md`.
+
 ### Paso 1: Crear un nuevo archivo de migración (.sql)
 Crea tus archivos SQL dentro del directorio raíz `migrations/` usando un identificador numérico o timestamp secuencial al inicio del nombre del archivo.
 

@@ -36,6 +36,11 @@ cargo build
 # Tests (integration tests spin up the real router against an in-memory SQLite DB)
 cargo test
 cargo test some_test_name    # run a single test by name substring
+
+# Scaffolding (see "CLI de scaffolding" below)
+cargo make:model Product
+cargo make:controller Product
+cargo make:migration create_products_table
 ```
 
 ### Database / migrations
@@ -66,6 +71,16 @@ Conventions to follow when extending (mirrored in `docs/`, though the docs preda
 - **File uploads** (`src/controllers/upload_controller.rs`): `axum::extract::Multipart` (needs the `multipart` feature on the `axum` dependency), saved to `static/uploads/<uuidv7>-<original-name>` and recorded in the `uploads` table (the same UUIDv7 is reused as both the row id and the filename prefix). The original filename is reduced to `Path::file_name()` before being used in the stored path — don't remove that, it's what prevents a crafted filename (e.g. `../../etc/passwd`) from writing outside the uploads directory.
 
 `docs/` still has a per-concern deep-dive (`architecture.md`, `controllers.md`, `models.md`, `database.md`, `views.md`, `middleware.md`) for the original scaffolding patterns (routing, Askama, HTMX basics) — accurate for the mechanics, just not updated for the auth/upload/error-handling layer added on top.
+
+## CLI de scaffolding (`cargo make:*`)
+
+Three Cargo aliases (`.cargo/config.toml`, checked in — nothing to install) generate boilerplate for a new resource, Artisan-style:
+
+- `cargo make:model <Nombre>` — writes `src/models/<snake>.rs` (a `FromRow`/`Serialize` struct with just `id: String`) and registers it in `src/models/mod.rs` (`pub mod` + `pub use`).
+- `cargo make:controller <Nombre>` — writes `src/controllers/<snake>_controller.rs` (an `index` handler following the `State<AppState>` / `Result<T, AppError>` conventions above) **and** a matching `templates/<snake>s/index.html`, registers the controller in `src/controllers/mod.rs`, and prints the `.route(...)` line to paste into `src/routes.rs`.
+- `cargo make:migration <description>` — writes `migrations/<timestamp>_<description>.sql` with the `VARCHAR(36) PRIMARY KEY` skeleton (see above). If `<description>` matches `create_X_table`, it infers `X` as the table name.
+
+All three are implemented in `src/bin/larust-cli.rs` (a second binary in this package — `Cargo.toml` sets `default-run = "larust"` so plain `cargo run`/`cargo watch -x run` still resolve to the server, not the CLI) using simple string-template substitution (no templating crate). Generated code deliberately only references the `id` field so it compiles immediately; the TODO comments in the output mark where to add real columns. Routes are **never** auto-wired — that's left manual since it requires a judgment call (HTTP verb, whether the route needs `require_auth`).
 
 ## Notes
 

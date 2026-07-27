@@ -75,6 +75,20 @@ DATABASE_URL=postgres://usuario:password@localhost:5432/larust_db
 
 ---
 
+## 🛠️ Generador de Código (`cargo make:*`)
+
+Larust incluye comandos estilo `php artisan make:...`, listos para usar sin instalar nada aparte (ya vienen configurados en `.cargo/config.toml`):
+
+```bash
+cargo make:model Product          # crea src/models/product.rs y lo registra en mod.rs
+cargo make:controller Product     # crea el controlador + su vista, y te indica la ruta a agregar
+cargo make:migration create_products_table  # crea migrations/<timestamp>_create_products_table.sql
+```
+
+El código generado compila de inmediato (solo referencia el campo `id`); los comentarios `// TODO:` marcan dónde agregar tus columnas reales. Agregar la ruta en `src/routes.rs` queda manual a propósito, ya que implica decidir el verbo HTTP y si la ruta requiere sesión.
+
+---
+
 ## 🚀 Desarrollo Local con Hot Reload
 
 Para tener una experiencia de desarrollo ergonómica similar a Laravel, puedes configurar la recarga en caliente (Hot Reload) tanto para el servidor de Rust como para los estilos de Tailwind CSS v4.

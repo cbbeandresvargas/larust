@@ -4,6 +4,12 @@ Los controladores en Larust encapsulan la lógica de manejo de solicitudes HTTP 
 
 ---
 
+> [!TIP]
+> `cargo make:controller Product` genera automáticamente el archivo del
+> controlador y su vista, y los registra por ti — ver "CLI de scaffolding"
+> en `CLAUDE.md`. Lo de abajo explica el patrón que ese comando reproduce,
+> útil si prefieres hacerlo a mano o entender qué genera.
+
 ## 🛠️ Cómo crear un controlador paso a paso
 
 ### Paso 1: Crear el archivo del controlador
