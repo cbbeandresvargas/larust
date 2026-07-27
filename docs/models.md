@@ -49,9 +49,61 @@ pub use product::Product; // <-- Re-exportar estructura
 
 ---
 
+## 🧰 CRUD genérico con `Model`/`Insertable` (`src/db.rs`)
+
+No es un ORM (sin relaciones ni query builder), pero elimina el `SELECT`/`DELETE ... WHERE id = ?` repetido en cada controlador. `#[derive(FromRow)]` mapea columnas **por nombre**, así que un `SELECT *` genérico funciona para cualquier struct sin importar el orden de sus campos.
+
+### Lectura y borrado: solo `Model`
+```rust
+use crate::db::Model;
+
+impl Model for Product {
+    const TABLE: &'static str = "products";
+}
+```
+Con eso ya tienes gratis:
+```rust
+Product::find(&state, &id).await?   // Option<Product>
+Product::all(&state).await?         // Vec<Product>
+Product::delete(&state, &id).await? // ()
+```
+
+### Crear/actualizar: además `Insertable`
+Rust no tiene reflexión, así que hace falta decirle al trait qué columnas insertar (sin el `id`, que ya maneja `create` por su cuenta):
+
+```rust
+use crate::db::{Insertable, Model, Value};
+
+impl Insertable for Product {
+    fn id(&self) -> &str {
+        &self.id
+    }
+
+    fn fields(&self) -> Vec<(&'static str, Value)> {
+        vec![
+            ("name", Value::Str(self.name.clone())),
+            ("description", Value::OptStr(self.description.clone())),
+            // Value solo tiene Str/OptStr/Int hoy — si tu columna es otro
+            // tipo (f64, bool...), agrega la variante en src/db.rs.
+        ]
+    }
+}
+```
+Con eso: `product.create(&state).await?` y `product.update(&state).await?`.
+
+> [!TIP]
+> Solo implementa `Insertable` cuando el alta/edición es realmente genérica.
+> `User` (`src/models/user.rs`) implementa únicamente `Model`: su `create`/
+> `update` real vive a mano en `user_controller.rs`/`auth_controller.rs`
+> porque necesita hashear la contraseña y mostrar "correo ya registrado" en
+> caso de violación de unicidad — cosas que un trait genérico no puede
+> expresar. Usa el enfoque manual (ver `docs/database.md`) para esos casos.
+
+---
+
 ## 🚀 Uso del Modelo en un Controlador
 
-Para usar el modelo e interactuar con la base de datos desde tu controlador, puedes hacer lo siguiente:
+Para consultas que no encajan en `Model`/`Insertable` (joins, filtros, agregaciones), sigue usando SQLx directamente:
 
 ```rust
 use axum::extract::State;

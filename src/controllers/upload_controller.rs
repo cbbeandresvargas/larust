@@ -5,7 +5,7 @@ use axum::{
     Extension,
 };
 
-use crate::db::{new_id, AppState};
+use crate::db::{new_id, AppState, Insertable, Model};
 use crate::error::AppError;
 use crate::models::{Upload, User};
 
@@ -18,12 +18,8 @@ pub struct UploadsTemplate {
 }
 
 pub async fn index(State(state): State<AppState>) -> Result<UploadsTemplate, AppError> {
-    let uploads = sqlx::query_as::<_, Upload>(
-        "SELECT id, user_id, filename, original_name, content_type, size, created_at \
-         FROM uploads ORDER BY id DESC",
-    )
-    .fetch_all(&state.pool)
-    .await?;
+    let mut uploads = Upload::all(&state).await?;
+    uploads.reverse(); // más recientes primero (Model::all ordena por id ascendente)
 
     Ok(UploadsTemplate { uploads })
 }
@@ -67,18 +63,16 @@ pub async fn store(
         let path = format!("{}/{}", UPLOAD_DIR, stored_name);
         tokio::fs::write(&path, &data).await?;
 
-        sqlx::query(&state.sql(
-            "INSERT INTO uploads (id, user_id, filename, original_name, content_type, size) \
-             VALUES (?, ?, ?, ?, ?, ?)",
-        ))
-        .bind(&id)
-        .bind(user.id.as_str())
-        .bind(&stored_name)
-        .bind(&original_name)
-        .bind(content_type)
-        .bind(data.len() as i64)
-        .execute(&state.pool)
-        .await?;
+        let upload = Upload {
+            id,
+            user_id: Some(user.id.clone()),
+            filename: stored_name,
+            original_name,
+            content_type,
+            size: data.len() as i64,
+            created_at: String::new(), // lo asigna DEFAULT CURRENT_TIMESTAMP al insertar
+        };
+        upload.create(&state).await?;
     }
 
     Ok(Redirect::to("/uploads"))

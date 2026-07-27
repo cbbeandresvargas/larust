@@ -10,18 +10,28 @@ use std::path::Path;
 const MODEL_TEMPLATE: &str = r#"use serde::Serialize;
 use sqlx::FromRow;
 
+use crate::db::Model;
+
 #[derive(Debug, Clone, Serialize, FromRow)]
 pub struct __Pascal__ {
     pub id: String,
     // TODO: agrega aquí las demás columnas de tu tabla `__plural__`
     // (deben coincidir en nombre y orden con tu migración; ver `cargo make:migration`).
 }
+
+impl Model for __Pascal__ {
+    const TABLE: &'static str = "__plural__";
+}
+
+// Si necesitas crear/actualizar filas de `__plural__` desde un formulario,
+// además de `Model` implementa `Insertable` (ver src/models/upload.rs para
+// un ejemplo) para tener `__Pascal__::create`/`update` genéricos.
 "#;
 
 const CONTROLLER_TEMPLATE: &str = r#"use askama::Template;
 use axum::extract::State;
 
-use crate::db::AppState;
+use crate::db::{AppState, Model};
 use crate::error::AppError;
 use crate::models::__Pascal__;
 
@@ -31,12 +41,8 @@ pub struct __Pascal__sTemplate {
     pub items: Vec<__Pascal__>,
 }
 
-// TODO: reemplaza esta consulta por las columnas reales de tu tabla `__plural__`
-// (agrégalas primero al modelo `__Pascal__` en src/models/__snake__.rs).
 pub async fn index(State(state): State<AppState>) -> Result<__Pascal__sTemplate, AppError> {
-    let items = sqlx::query_as::<_, __Pascal__>("SELECT id FROM __plural__ ORDER BY id")
-        .fetch_all(&state.pool)
-        .await?;
+    let items = __Pascal__::all(&state).await?;
 
     Ok(__Pascal__sTemplate { items })
 }

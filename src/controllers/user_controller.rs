@@ -6,7 +6,7 @@ use axum::{
 };
 use serde::Deserialize;
 
-use crate::db::{new_id, AppState};
+use crate::db::{new_id, AppState, Model};
 use crate::error::AppError;
 use crate::models::User;
 
@@ -39,11 +39,7 @@ fn blank_user(id: String, form: &UserForm) -> User {
 }
 
 pub async fn index(State(state): State<AppState>) -> Result<UsersTemplate, AppError> {
-    let users = sqlx::query_as::<_, User>(
-        "SELECT id, name, email, password_hash FROM users ORDER BY id",
-    )
-    .fetch_all(&state.pool)
-    .await?;
+    let users = User::all(&state).await?;
 
     Ok(UsersTemplate { users })
 }
@@ -96,13 +92,7 @@ pub async fn edit(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<UserFormTemplate, AppError> {
-    let user = sqlx::query_as::<_, User>(&state.sql(
-        "SELECT id, name, email, password_hash FROM users WHERE id = ?",
-    ))
-    .bind(id)
-    .fetch_optional(&state.pool)
-    .await?
-    .ok_or(AppError::NotFound)?;
+    let user = User::find(&state, &id).await?.ok_or(AppError::NotFound)?;
 
     Ok(UserFormTemplate {
         user: Some(user),
@@ -144,10 +134,7 @@ pub async fn destroy(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<&'static str, AppError> {
-    sqlx::query(&state.sql("DELETE FROM users WHERE id = ?"))
-        .bind(id)
-        .execute(&state.pool)
-        .await?;
+    User::delete(&state, &id).await?;
 
     Ok("")
 }
