@@ -24,7 +24,7 @@ pub struct ProductTemplate {
 }
 
 // 2. Handler para renderizar una vista HTML
-pub async fn show(Path(id): Path<i64>) -> impl IntoResponse {
+pub async fn show(Path(id): Path<String>) -> impl IntoResponse {
     // Aquí iría la consulta a la base de datos
     ProductTemplate {
         name: format!("Producto #{}", id),
@@ -54,8 +54,9 @@ Importa el controlador y mapea la ruta correspondiente en el enrutador de Axum:
 ```rust
 // src/routes.rs
 use crate::controllers::{home_controller, user_controller, product_controller};
+use crate::db::AppState;
 
-pub fn web_routes() -> Router<AnyPool> {
+pub fn web_routes(state: AppState) -> Router<AppState> {
     Router::new()
         .route("/", get(home_controller::index))
         .route("/users", get(user_controller::index))
@@ -69,8 +70,8 @@ pub fn web_routes() -> Router<AnyPool> {
 
 Axum proporciona extractores muy potentes que se pasan como argumentos a las funciones del controlador:
 
-- **Estado global (`State`)**: `State(db): State<AnyPool>` para acceder a la base de datos.
-- **Parámetros de ruta (`Path`)**: `Path(id): Path<i64>` para rutas como `/users/:id`.
+- **Estado global (`State`)**: `State(state): State<AppState>` para acceder a `state.pool` (el `AnyPool`) y a `state.sql(...)` (ver docs/database.md sobre por qué hace falta para Postgres).
+- **Parámetros de ruta (`Path`)**: `Path(id): Path<String>` para rutas como `/users/:id` — los IDs son UUIDv7 en texto, no enteros.
 - **Query Params (`Query`)**: `Query(params): Query<MyStruct>` para `/search?q=rust`.
 - **Formularios (`Form`)**: `Form(input): Form<MyFormStruct>` para procesar envíos `POST`.
 - **Cuerpo JSON (`Json`)**: `Json(payload): Json<MyStruct>` para peticiones de API REST.

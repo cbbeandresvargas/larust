@@ -3,8 +3,8 @@ use sqlx::FromRow;
 
 #[derive(Debug, Clone, Serialize, FromRow)]
 pub struct Upload {
-    pub id: i64,
-    pub user_id: Option<i64>,
+    pub id: String,
+    pub user_id: Option<String>,
     pub filename: String,
     pub original_name: String,
     pub content_type: Option<String>,

@@ -29,15 +29,20 @@ Ejemplo: `migrations/20260723000000_create_users_table.sql`
 
 Escribe tu sentencia DDL estándar dentro del archivo:
 ```sql
-CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+CREATE TABLE IF NOT EXISTS products (
+    id VARCHAR(36) PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
-    email VARCHAR(255) NOT NULL UNIQUE
+    price INTEGER NOT NULL
 );
 ```
 
 > [!NOTE]
-> Dado que Larust es agnóstico a la base de datos, si decides cambiar de SQLite a PostgreSQL en tu archivo `.env`, asegúrate de actualizar la sintaxis de la clave primaria a `SERIAL PRIMARY KEY` o `GENERATED ALWAYS AS IDENTITY`.
+> La clave primaria es un `VARCHAR(36)`, no un entero autoincremental: SQLite
+> (`AUTOINCREMENT`) y Postgres (`SERIAL`/`GENERATED ALWAYS AS IDENTITY`) no
+> comparten sintaxis para eso, así que en Larust el `id` es un UUIDv7 (texto)
+> generado por la aplicación con `larust::db::new_id()` antes del `INSERT` —
+> ver `src/models/user.rs` y `src/controllers/user_controller.rs::create` para
+> el patrón completo. Con eso, la misma migración sirve para ambos motores.
 
 ### Paso 2: Ejecución automática
 No necesitas correr ningún comando manual para migrar tu base de datos local en desarrollo. Al ejecutar el servidor con:
@@ -73,32 +78,43 @@ Si prefieres mayor control (como deshacer migraciones o crearlas con el generado
 
 ## 🔍 Ejecución de Consultas con SQLx
 
-SQLx te permite ejecutar consultas con o sin mapeo automático:
+SQLx te permite ejecutar consultas con o sin mapeo automático. Todos los
+handlers reciben `State<AppState>` (`src/db.rs`), no `State<AnyPool>`
+directamente: `AppState` trae el pool (`state.pool`) más el helper
+`state.sql(...)`.
 
 ### 1. Consultar múltiples registros mapeados a un Modelo (`query_as`)
 ```rust
 let products = sqlx::query_as::<_, Product>("SELECT id, name, price, stock FROM products")
-    .fetch_all(&db)
+    .fetch_all(&state.pool)
     .await?;
 ```
 
 ### 2. Consultar un único registro por ID
 ```rust
-let product = sqlx::query_as::<_, Product>("SELECT id, name, price, stock FROM products WHERE id = ?")
+let product = sqlx::query_as::<_, Product>(&state.sql("SELECT id, name, price, stock FROM products WHERE id = ?"))
     .bind(product_id) // SQLx se encarga de prevenir inyección SQL
-    .fetch_one(&db)
+    .fetch_one(&state.pool)
     .await?;
 ```
 
 ### 3. Insertar, Actualizar o Eliminar registros (`execute`)
 ```rust
-sqlx::query("INSERT INTO products (name, price, stock) VALUES (?, ?, ?)")
+let id = larust::db::new_id(); // UUIDv7 generado en la app, ver nota sobre migraciones arriba
+sqlx::query(&state.sql("INSERT INTO products (id, name, price, stock) VALUES (?, ?, ?, ?)"))
+    .bind(&id)
     .bind("Nuevo Laptop")
     .bind(899.99)
     .bind(10)
-    .execute(&db)
+    .execute(&state.pool)
     .await?;
 ```
 
-> [!TIP]
-> Al usar el driver agnóstico `sqlx::Any`, el marcador de posición para parámetros en las consultas SQL es siempre el signo de interrogación (`?`), tanto para SQLite como para PostgreSQL.
+> [!IMPORTANT]
+> **Siempre escribe `?` como placeholder, pero pásalo por `state.sql(...)`
+> antes de dárselo a `sqlx::query`/`query_as`.** A pesar de lo que sugeriría
+> el nombre "driver agnóstico", `sqlx::Any` **no** traduce `?` a `$1, $2, ...`
+> por su cuenta: SQLite acepta `?` de forma nativa, pero Postgres lo rechaza
+> con un error de sintaxis. `state.sql()` (`src/db.rs`) hace esa traducción
+> en tiempo de ejecución según el motor conectado — sin ella, cualquier
+> consulta con `.bind()` falla contra Postgres.

@@ -2,9 +2,8 @@ use askama::Template;
 use axum::{extract::State, response::Redirect, Form};
 use axum_extra::extract::cookie::{Cookie, CookieJar};
 use serde::Deserialize;
-use sqlx::AnyPool;
-use uuid::Uuid;
 
+use crate::db::{new_id, AppState};
 use crate::middleware::auth::SESSION_COOKIE;
 use crate::models::User;
 
@@ -42,14 +41,14 @@ fn now_unix() -> i64 {
         .as_secs() as i64
 }
 
-async fn create_session(pool: &AnyPool, user_id: i64) -> Result<String, sqlx::Error> {
-    let session_id = Uuid::new_v4().to_string();
+async fn create_session(state: &AppState, user_id: &str) -> Result<String, sqlx::Error> {
+    let session_id = new_id();
     let expires_at = now_unix() + SESSION_DURATION_SECS;
-    sqlx::query("INSERT INTO sessions (id, user_id, expires_at) VALUES (?, ?, ?)")
+    sqlx::query(&state.sql("INSERT INTO sessions (id, user_id, expires_at) VALUES (?, ?, ?)"))
         .bind(&session_id)
         .bind(user_id)
         .bind(expires_at)
-        .execute(pool)
+        .execute(&state.pool)
         .await?;
     Ok(session_id)
 }
@@ -70,15 +69,15 @@ pub async fn show_register() -> RegisterTemplate {
 }
 
 pub async fn login(
-    State(pool): State<AnyPool>,
+    State(state): State<AppState>,
     jar: CookieJar,
     Form(form): Form<LoginForm>,
 ) -> Result<(CookieJar, Redirect), LoginTemplate> {
-    let user = sqlx::query_as::<_, User>(
+    let user = sqlx::query_as::<_, User>(&state.sql(
         "SELECT id, name, email, password_hash FROM users WHERE email = ?",
-    )
+    ))
     .bind(&form.email)
-    .fetch_optional(&pool)
+    .fetch_optional(&state.pool)
     .await
     .ok()
     .flatten()
@@ -90,7 +89,7 @@ pub async fn login(
         });
     };
 
-    let session_id = create_session(&pool, user.id).await.map_err(|_| LoginTemplate {
+    let session_id = create_session(&state, &user.id).await.map_err(|_| LoginTemplate {
         error: Some("Ocurrió un error interno, intenta de nuevo.".to_string()),
     })?;
 
@@ -98,7 +97,7 @@ pub async fn login(
 }
 
 pub async fn register(
-    State(pool): State<AnyPool>,
+    State(state): State<AppState>,
     jar: CookieJar,
     Form(form): Form<RegisterForm>,
 ) -> Result<(CookieJar, Redirect), RegisterTemplate> {
@@ -106,12 +105,16 @@ pub async fn register(
         error: Some("No se pudo procesar la contraseña.".to_string()),
     })?;
 
-    let result = sqlx::query("INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)")
-        .bind(&form.name)
-        .bind(&form.email)
-        .bind(&password_hash)
-        .execute(&pool)
-        .await;
+    let user_id = new_id();
+    let result = sqlx::query(&state.sql(
+        "INSERT INTO users (id, name, email, password_hash) VALUES (?, ?, ?, ?)",
+    ))
+    .bind(&user_id)
+    .bind(&form.name)
+    .bind(&form.email)
+    .bind(&password_hash)
+    .execute(&state.pool)
+    .await;
 
     if let Err(sqlx::Error::Database(db_err)) = &result {
         if db_err.is_unique_violation() {
@@ -126,31 +129,18 @@ pub async fn register(
         });
     }
 
-    let user = sqlx::query_as::<_, User>(
-        "SELECT id, name, email, password_hash FROM users WHERE email = ?",
-    )
-    .bind(&form.email)
-    .fetch_one(&pool)
-    .await;
-
-    let Ok(user) = user else {
-        return Err(RegisterTemplate {
-            error: Some("Cuenta creada, pero no se pudo iniciar sesión automáticamente.".to_string()),
-        });
-    };
-
-    let session_id = create_session(&pool, user.id).await.map_err(|_| RegisterTemplate {
+    let session_id = create_session(&state, &user_id).await.map_err(|_| RegisterTemplate {
         error: Some("Cuenta creada. Inicia sesión manualmente.".to_string()),
     })?;
 
     Ok((jar.add(session_cookie(session_id)), Redirect::to("/users")))
 }
 
-pub async fn logout(State(pool): State<AnyPool>, jar: CookieJar) -> (CookieJar, Redirect) {
+pub async fn logout(State(state): State<AppState>, jar: CookieJar) -> (CookieJar, Redirect) {
     if let Some(cookie) = jar.get(SESSION_COOKIE) {
-        let _ = sqlx::query("DELETE FROM sessions WHERE id = ?")
+        let _ = sqlx::query(&state.sql("DELETE FROM sessions WHERE id = ?"))
             .bind(cookie.value())
-            .execute(&pool)
+            .execute(&state.pool)
             .await;
     }
 

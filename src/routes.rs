@@ -3,9 +3,9 @@ use axum::{
     routing::get,
     Router,
 };
-use sqlx::AnyPool;
 
 use crate::controllers::{auth_controller, home_controller, upload_controller, user_controller};
+use crate::db::AppState;
 use crate::middleware::auth::require_auth;
 
 /// Rutas de la aplicación web que renderizan vistas HTML (Askama).
@@ -13,7 +13,7 @@ use crate::middleware::auth::require_auth;
 /// `/users` y `/uploads` requieren sesión activa: se agrupan bajo un router
 /// separado con `require_auth` aplicado vía `.route_layer`, que se evalúa
 /// después de que Axum ya resolvió cuál handler atiende la petición.
-pub fn web_routes(pool: AnyPool) -> Router<AnyPool> {
+pub fn web_routes(state: AppState) -> Router<AppState> {
     let protected = Router::new()
         .route(
             "/users",
@@ -30,7 +30,7 @@ pub fn web_routes(pool: AnyPool) -> Router<AnyPool> {
             get(upload_controller::index).post(upload_controller::store),
         )
         .route("/logout", axum::routing::post(auth_controller::logout))
-        .route_layer(middleware::from_fn_with_state(pool, require_auth));
+        .route_layer(middleware::from_fn_with_state(state, require_auth));
 
     Router::new()
         .route("/", get(home_controller::index))
@@ -46,6 +46,6 @@ pub fn web_routes(pool: AnyPool) -> Router<AnyPool> {
 }
 
 /// Rutas de API y endpoints para HTMX
-pub fn api_routes() -> Router<AnyPool> {
+pub fn api_routes() -> Router<AppState> {
     Router::new().route("/ping", get(home_controller::ping))
 }

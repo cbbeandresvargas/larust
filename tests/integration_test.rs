@@ -2,11 +2,11 @@ use axum::{
     body::Body,
     http::{Request, StatusCode},
 };
-use larust::build_app;
-use sqlx::{any::AnyPoolOptions, AnyPool};
+use larust::{build_app, db::AppState};
+use sqlx::any::AnyPoolOptions;
 use tower::ServiceExt;
 
-async fn test_pool() -> AnyPool {
+async fn test_state() -> AppState {
     sqlx::any::install_default_drivers();
     // `sqlite::memory:` gives each pooled connection its own separate
     // in-memory database, so migrations run on one connection would be
@@ -18,12 +18,12 @@ async fn test_pool() -> AnyPool {
         .await
         .unwrap();
     sqlx::migrate!("./migrations").run(&pool).await.unwrap();
-    pool
+    AppState::new(pool, false)
 }
 
 #[tokio::test]
 async fn ping_returns_ok() {
-    let app = build_app(test_pool().await);
+    let app = build_app(test_state().await);
 
     let response = app
         .oneshot(
@@ -40,7 +40,7 @@ async fn ping_returns_ok() {
 
 #[tokio::test]
 async fn users_page_requires_authentication() {
-    let app = build_app(test_pool().await);
+    let app = build_app(test_state().await);
 
     let response = app
         .oneshot(
@@ -58,7 +58,7 @@ async fn users_page_requires_authentication() {
 
 #[tokio::test]
 async fn register_then_access_protected_users_page() {
-    let app = build_app(test_pool().await);
+    let app = build_app(test_state().await);
 
     let register_response = app
         .clone()
@@ -98,7 +98,7 @@ async fn register_then_access_protected_users_page() {
 
 #[tokio::test]
 async fn login_with_wrong_password_is_rejected() {
-    let app = build_app(test_pool().await);
+    let app = build_app(test_state().await);
 
     let response = app
         .oneshot(
@@ -118,7 +118,7 @@ async fn login_with_wrong_password_is_rejected() {
 
 #[tokio::test]
 async fn upload_file_then_appears_in_list() {
-    let app = build_app(test_pool().await);
+    let app = build_app(test_state().await);
 
     let register_response = app
         .clone()
@@ -190,7 +190,7 @@ async fn upload_file_then_appears_in_list() {
 
 #[tokio::test]
 async fn unknown_route_returns_404() {
-    let app = build_app(test_pool().await);
+    let app = build_app(test_state().await);
 
     let response = app
         .oneshot(

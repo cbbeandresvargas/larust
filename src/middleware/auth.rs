@@ -4,8 +4,8 @@ use axum::{
     response::{Redirect, Response},
 };
 use axum_extra::extract::cookie::CookieJar;
-use sqlx::AnyPool;
 
+use crate::db::AppState;
 use crate::models::{Session, User};
 
 pub const SESSION_COOKIE: &str = "session_id";
@@ -22,7 +22,7 @@ fn now_unix() -> i64 {
 /// autenticado en las extensiones de la petición para que los handlers lo
 /// extraigan con `Extension<User>`. Si no hay sesión válida, redirige a /login.
 pub async fn require_auth(
-    State(pool): State<AnyPool>,
+    State(state): State<AppState>,
     jar: CookieJar,
     mut req: Request,
     next: Next,
@@ -31,11 +31,11 @@ pub async fn require_auth(
         return Err(Redirect::to("/login"));
     };
 
-    let session = sqlx::query_as::<_, Session>(
+    let session = sqlx::query_as::<_, Session>(&state.sql(
         "SELECT id, user_id, expires_at FROM sessions WHERE id = ?",
-    )
+    ))
     .bind(cookie.value())
-    .fetch_optional(&pool)
+    .fetch_optional(&state.pool)
     .await
     .ok()
     .flatten();
@@ -48,11 +48,11 @@ pub async fn require_auth(
         return Err(Redirect::to("/login"));
     }
 
-    let user = sqlx::query_as::<_, User>(
+    let user = sqlx::query_as::<_, User>(&state.sql(
         "SELECT id, name, email, password_hash FROM users WHERE id = ?",
-    )
+    ))
     .bind(session.user_id)
-    .fetch_optional(&pool)
+    .fetch_optional(&state.pool)
     .await
     .ok()
     .flatten();

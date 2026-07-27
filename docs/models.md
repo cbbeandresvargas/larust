@@ -15,7 +15,7 @@ use sqlx::FromRow;
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct Product {
-    pub id: i64,
+    pub id: String, // UUIDv7 generado en la app, no un entero autoincremental (ver docs/database.md)
     pub name: String,
     pub description: Option<String>, // Los valores NULL en DB mapean a Option<T>
     pub price: f64,
@@ -50,12 +50,12 @@ Para usar el modelo e interactuar con la base de datos desde tu controlador, pue
 
 ```rust
 use axum::extract::State;
-use sqlx::AnyPool;
+use larust::db::AppState;
 use crate::models::Product;
 
-pub async fn list_products(State(db): State<AnyPool>) -> Result<axum::Json<Vec<Product>>, String> {
+pub async fn list_products(State(state): State<AppState>) -> Result<axum::Json<Vec<Product>>, String> {
     let products = sqlx::query_as::<_, Product>("SELECT id, name, description, price, stock FROM products")
-        .fetch_all(&db)
+        .fetch_all(&state.pool)
         .await
         .map_err(|e| e.to_string())?;
 

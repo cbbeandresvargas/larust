@@ -4,9 +4,8 @@ use axum::{
     response::Redirect,
     Extension,
 };
-use sqlx::AnyPool;
-use uuid::Uuid;
 
+use crate::db::{new_id, AppState};
 use crate::error::AppError;
 use crate::models::{Upload, User};
 
@@ -18,25 +17,26 @@ pub struct UploadsTemplate {
     pub uploads: Vec<Upload>,
 }
 
-pub async fn index(State(pool): State<AnyPool>) -> Result<UploadsTemplate, AppError> {
+pub async fn index(State(state): State<AppState>) -> Result<UploadsTemplate, AppError> {
     let uploads = sqlx::query_as::<_, Upload>(
         "SELECT id, user_id, filename, original_name, content_type, size, created_at \
          FROM uploads ORDER BY id DESC",
     )
-    .fetch_all(&pool)
+    .fetch_all(&state.pool)
     .await?;
 
     Ok(UploadsTemplate { uploads })
 }
 
 /// Guarda cada campo de archivo del formulario en `static/uploads/` con un
-/// nombre generado (UUID) y registra el archivo en la base de datos.
+/// nombre generado (UUIDv7, el mismo que se usa como id de la fila) y
+/// registra el archivo en la base de datos.
 /// El nombre original se reduce a su componente base (`file_name()`) antes de
 /// usarlo para evitar que un valor como `../../etc/passwd` escriba fuera del
 /// directorio de subidas.
 pub async fn store(
     Extension(user): Extension<User>,
-    State(pool): State<AnyPool>,
+    State(state): State<AppState>,
     mut multipart: Multipart,
 ) -> Result<Redirect, AppError> {
     while let Some(field) = multipart
@@ -62,20 +62,22 @@ pub async fn store(
             .await
             .map_err(|_| AppError::BadRequest("No se pudo leer el archivo.".to_string()))?;
 
-        let stored_name = format!("{}-{}", Uuid::new_v4(), safe_name);
+        let id = new_id();
+        let stored_name = format!("{}-{}", id, safe_name);
         let path = format!("{}/{}", UPLOAD_DIR, stored_name);
         tokio::fs::write(&path, &data).await?;
 
-        sqlx::query(
-            "INSERT INTO uploads (user_id, filename, original_name, content_type, size) \
-             VALUES (?, ?, ?, ?, ?)",
-        )
-        .bind(user.id)
+        sqlx::query(&state.sql(
+            "INSERT INTO uploads (id, user_id, filename, original_name, content_type, size) \
+             VALUES (?, ?, ?, ?, ?, ?)",
+        ))
+        .bind(&id)
+        .bind(user.id.as_str())
         .bind(&stored_name)
         .bind(&original_name)
         .bind(content_type)
         .bind(data.len() as i64)
-        .execute(&pool)
+        .execute(&state.pool)
         .await?;
     }
 
